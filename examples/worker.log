@@ -1,0 +1,15 @@
+2025-03-10 09:00:00,015 INFO  worker.main: Worker 1 started, polling queue "orders"
+2025-03-10 09:00:02,340 DEBUG worker.queue: Received 12 messages
+2025-03-10 09:00:02,912 INFO  worker.handler: Processed order 118 in 571 ms
+2025-03-10 09:00:03,406 INFO  worker.handler: Processed order 119 in 494 ms
+2025-03-10 09:00:04,001 WARN  worker.handler: Order 120 has no shipping address, using billing address
+2025-03-10 09:00:04,880 ERROR worker.handler: Failed to process order 121: connection refused to inventory-svc:8080
+2025-03-10 09:00:05,002 INFO  worker.handler: Processed order 122 in 121 ms
+2025-03-10 09:05:14,773 ERROR worker.handler: Failed to process order 130: connection refused to inventory-svc:8080
+2025-03-10 09:05:15,000 INFO  worker.queue: Backing off for 30s after 2 consecutive failures
+Traceback (most recent call last):
+  File "/app/worker/handler.py", line 88, in process
+    inventory.reserve(order_id)
+ConnectionRefusedError: [Errno 111] Connection refused
+2025-03-10 09:05:45,118 INFO  worker.main: Resuming after backoff
+2025-03-10 09:05:46,301 INFO  worker.handler: Processed order 130 in 1183 ms user=ann region=eu-west-1
