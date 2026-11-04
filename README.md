@@ -73,6 +73,9 @@ logsift api.jsonl --where status=500 --where user.name=ann
 # several files, gzip handled transparently, or stdin
 logsift api.jsonl worker.log.gz --level error
 kubectl logs deploy/web | logsift --since 5m --level warn
+
+# just the count of matches, like grep -c (exit 1 when zero)
+logsift api.jsonl --level error --count
 ```
 
 Output formats:

@@ -59,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     filter_parser.add_argument("--no-color", action="store_true", help="disable ANSI colours")
     filter_parser.add_argument("--limit", type=int, metavar="N", help="stop after N matching lines")
+    filter_parser.add_argument(
+        "-c", "--count", action="store_true", help="print only the number of matching lines, like grep -c",
+    )
 
     stats_parser.add_argument("--bucket", metavar="DUR", help="group counts into time buckets, e.g. 1m, 5m, 1h")
     stats_parser.add_argument("--top", type=int, default=10, metavar="N", help="how many message templates to show")
@@ -234,6 +237,11 @@ def main(argv: Sequence[str] | None = None, *, stdout: IO[str] | None = None, no
             else:
                 out.write(format_summary(summary, args.top, bucket) + "\n")
             return 0
+
+        if args.count:
+            total = sum(1 for _ in records)
+            out.write(f"{total}\n")
+            return 0 if total else 1
 
         colour = not args.no_color and out.isatty()
         emitted = 0

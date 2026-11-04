@@ -65,6 +65,16 @@ class TestFilterCommand:
         _, out = run(str(EXAMPLES / "api.jsonl"), "--limit", "2")
         assert len(out.strip().splitlines()) == 2
 
+    def test_count_prints_only_the_number_of_matches(self):
+        code, out = run(str(EXAMPLES / "api.jsonl"), "--level", "error", "--count")
+        assert code == 0
+        assert out.strip() == "3"
+
+    def test_count_with_no_matches_is_zero_and_exit_1(self):
+        code, out = run(str(EXAMPLES / "api.jsonl"), "--grep", "definitely-not-present", "--count")
+        assert code == 1
+        assert out.strip() == "0"
+
     def test_no_matches_exit_code_1(self):
         code, out = run(str(EXAMPLES / "api.jsonl"), "--grep", "definitely-not-present")
         assert code == 1
