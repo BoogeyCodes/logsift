@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ dataset.name }} — Logsift{% endblock %}
+{% block crumb %}<a href="/">datasets</a> / {{ dataset.name }}{% endblock %}
+{% block content %}
+
+<div class="card" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 style="margin:0">{{ dataset.name }}</h1>
+    <span class="muted">{{ "{:,}".format(dataset.line_count) }} lines · {{ dataset.source }}</span>
+  </div>
+  <a class="btn ghost sm" href="/datasets/{{ dataset.id }}.json{% if params %}?{{ request.url.query }}{% endif %}">View JSON</a>
+</div>
+
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+
+<div class="tiles">
+  <div class="tile"><div class="label">Matched</div><div class="value">{{ "{:,}".format(shown) }}</div>
+    <div class="muted" style="font-size:12px">of {{ "{:,}".format(dataset.line_count) }}</div></div>
+  <div class="tile"><div class="label">Errors+Fatal</div><div class="value error">{{ "{:,}".format(error_count) }}</div></div>
+  <div class="tile"><div class="label">Warnings</div><div class="value">{{ "{:,}".format(warn_count) }}</div></div>
+  <div class="tile"><div class="label">Span</div><div class="value" style="font-size:19px">{{ span }}</div></div>
+  <div class="tile"><div class="label">Patterns</div><div class="value accent">{{ summary.templates | length }}</div></div>
+</div>
+
+<form method="get" action="/datasets/{{ dataset.id }}" class="card" style="margin-bottom:14px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end">
+    <div>
+      <label for="level">Min level</label>
+      <select id="level" name="level">
+        <option value="">any</option>
+        {% for lv in ["trace","debug","info","warn","error","fatal"] %}
+          <option value="{{ lv }}" {% if params.get('level')==lv %}selected{% endif %}>{{ lv }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label for="q">Text (regex)</label><input type="text" id="q" name="q" value="{{ params.get('q','') }}" placeholder="timeout"></div>
+    <div><label for="where">Field</label><input type="text" id="where" name="where" value="{{ params.get('where','') }}" placeholder="status=500"></div>
+    <div><label for="since">Since</label><input type="text" id="since" name="since" value="{{ params.get('since','') }}" placeholder="15m or ISO"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" type="submit">Filter</button>
+      <a class="btn ghost" href="/datasets/{{ dataset.id }}">Clear</a>
+    </div>
+  </div>
+</form>
+
+{% if timeline %}
+<div class="card">
+  <h2>Volume over time (errors in red)</h2>
+  <div style="display:flex;align-items:flex-end;gap:2px;height:120px;padding-top:6px">
+    {% for b in timeline %}
+      <div title="{{ b.date }} · {{ b.total }} lines, {{ b.errors }} errors"
+           style="flex:1;min-width:2px;height:100%;display:flex;flex-direction:column;justify-content:flex-end">
+        <div style="height:{{ b.height }}%;background:var(--debug);border-radius:2px 2px 0 0;position:relative">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:{{ (b.error_height / b.height * 100) if b.height else 0 }}%;background:var(--error);border-radius:2px 2px 0 0"></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" class="cols">
+  <div class="card">
+    <h2>By level</h2>
+    {% for lv in levels %}
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
+          <span class="lvl lvl-{{ lv.name }}">{{ lv.name }}</span>
+          <span class="muted">{{ "{:,}".format(lv.count) }} · {{ lv.pct }}%</span>
+        </div>
+        <div style="height:6px;background:var(--panel-2);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:{{ lv.pct }}%;background:var(--accent)"></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2>Top errors</h2>
+    {% if top_errors %}
+      <table><tbody>
+        {% for tpl, n in top_errors %}
+          <tr><td class="num" style="color:var(--error);font-weight:650;width:1%">{{ n }}</td><td class="mono" style="font-size:12.5px">{{ tpl }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+    {% else %}<p class="muted">No errors in this view.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Top message patterns</h2>
+  <table><tbody>
+    {% for tpl, n in top_messages %}
+      <tr><td style="color:var(--accent);font-weight:650;width:1%">{{ n }}</td><td class="mono" style="font-size:12.5px">{{ tpl }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+</div>
+
+<div class="card">
+  <h2>Lines <span class="muted" style="text-transform:none;letter-spacing:0">— page {{ page }} of {{ pages }}</span></h2>
+  <table>
+    <thead><tr><th style="width:1%">Time</th><th style="width:1%">Level</th><th>Message</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td class="mono muted" style="white-space:nowrap">{{ r.timestamp.strftime('%H:%M:%S') if r.timestamp else '—' }}</td>
+        <td><span class="lvl lvl-{{ r.level.name }}">{{ r.level.name if r.level.name != 'UNKNOWN' else '?' }}</span></td>
+        <td>
+          <span>{{ r.message or r.raw }}</span>
+          {% for k, v in r.fields.items() %}<code style="font-size:11.5px;margin-left:6px;color:var(--muted)">{{ k }}={{ v }}</code>{% endfor %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">No lines match this filter.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if pages > 1 %}
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      {% set q = request.url.query | replace('page=' ~ page, '') %}
+      {% if page > 1 %}<a class="btn ghost sm" href="?{{ q }}&page={{ page - 1 }}">← Prev</a>{% endif %}
+      <span class="muted" style="font-size:13px">page {{ page }} / {{ pages }}</span>
+      {% if page < pages %}<a class="btn ghost sm" href="?{{ q }}&page={{ page + 1 }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<style>@media (max-width:640px){.cols{grid-template-columns:1fr !important}}</style>
+{% endblock %}

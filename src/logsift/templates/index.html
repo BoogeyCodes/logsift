@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Logsift Console{% endblock %}
+{% block content %}
+
+<h1>Read your logs, not just grep them.</h1>
+<p class="muted">Drop in JSON or plain-text logs and get a dashboard — levels, an error timeline, the
+  message patterns behind the noise — and a viewer that filters by level, text, field and time.</p>
+
+<div class="card">
+  <h2>Datasets</h2>
+  {% if datasets %}
+    <table>
+      <thead><tr><th>Name</th><th>Source</th><th>Lines</th><th>Added</th></tr></thead>
+      <tbody>
+      {% for d in datasets %}
+        <tr>
+          <td><a href="/datasets/{{ d.id }}"><strong>{{ d.name }}</strong></a></td>
+          <td class="muted mono">{{ d.source }}</td>
+          <td class="muted">{{ "{:,}".format(d.line_count) }}</td>
+          <td class="muted">{{ d.created_at }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No datasets yet — add one below.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Add logs</h2>
+  {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+  <form method="post" action="/datasets" enctype="multipart/form-data">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" placeholder="e.g. prod api — March 10">
+    <label for="content" style="margin-top:12px">Paste log lines</label>
+    <textarea id="content" name="content" spellcheck="false" placeholder='{"level":"error","message":"timeout","status":500}
+2025-03-10 09:00:00 INFO  worker started'></textarea>
+    <label for="file" style="margin-top:12px">…or upload a file</label>
+    <input type="file" id="file" name="file" accept=".log,.jsonl,.json,.txt">
+    <div style="margin-top:14px"><button class="btn" type="submit">Analyse</button></div>
+  </form>
+</div>
+
+{% endblock %}
