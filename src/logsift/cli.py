@@ -49,6 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     filter_parser = subparsers.add_parser("filter", help="print matching lines (default command)")
     stats_parser = subparsers.add_parser("stats", help="summarise matching lines")
+    serve_parser = subparsers.add_parser("serve", help="run the web console (needs the [web] extra)")
+    serve_parser.add_argument("--db", default="logs.db", help="SQLite database path (default: logs.db)")
+    serve_parser.add_argument("--host", default="127.0.0.1", help="interface to bind (default: 127.0.0.1)")
+    serve_parser.add_argument("--port", type=int, default=8000, help="port to listen on (default: 8000)")
 
     for sub in (filter_parser, stats_parser):
         _add_common_arguments(sub)
@@ -211,16 +215,33 @@ def _human_delta(delta: timedelta | None) -> str:
     return " ".join(parts)
 
 
+def _serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+    except ModuleNotFoundError:
+        print("the web console needs the extra: pip install 'logsift[web]'", file=sys.stderr)
+        return 1
+    from logsift.web import create_app
+
+    app = create_app(args.db)
+    print(f"logsift console on http://{args.host}:{args.port}", file=sys.stderr)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None, *, stdout: IO[str] | None = None, now: datetime | None = None) -> int:
     out = stdout or sys.stdout
     argv = list(sys.argv[1:] if argv is None else argv)
     # Default to the "filter" command when the first token is not a known subcommand.
-    if not argv or argv[0] not in ("filter", "stats", "-h", "--help", "--version"):
+    if not argv or argv[0] not in ("filter", "stats", "serve", "-h", "--help", "--version"):
         argv.insert(0, "filter")
 
     parser = build_parser()
     args = parser.parse_args(argv)
     now = now or datetime.now(tz=timezone.utc)
+
+    if args.command == "serve":
+        return _serve(args)
 
     try:
         spec = _build_spec(args, now)
