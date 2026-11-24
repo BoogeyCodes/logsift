@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/BoogeyCodes/logsift/actions/workflows/ci.yml/badge.svg)](https://github.com/BoogeyCodes/logsift/actions/workflows/ci.yml)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB)
-![No dependencies](https://img.shields.io/badge/dependencies-none-success)
+![CLI: no dependencies](https://img.shields.io/badge/CLI-no%20dependencies-success)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-Filter and summarise application logs from the terminal. Point it at JSON-lines output from
-Serilog, pino, structlog, zap or a cloud agent, or at classic `timestamp LEVEL message` text,
-and ask questions like *"what errored in the last 15 minutes?"* or *"which messages dominate
-this file?"* without writing a `jq` pipeline.
+Filter and summarise application logs — from the terminal **or a web console**. Point it at
+JSON-lines output from Serilog, pino, structlog, zap or a cloud agent, or at classic
+`timestamp LEVEL message` text, and ask questions like *"what errored in the last 15 minutes?"* or
+*"which messages dominate this file?"* without writing a `jq` pipeline.
 
 ```
 $ logsift stats api.jsonl --bucket 5m --top 3
@@ -31,6 +31,27 @@ Top errors (ERROR and above), 2 of 2:
 Per 5m (total / errors):
   2025-03-10 09:00       10 / 2      ##############################
   2025-03-10 09:05        1 / 1      ###...........................
+```
+
+## The console
+
+The same engine, in the browser. Paste logs or upload a file and get a dashboard — the level
+breakdown, a timeline of volume with errors picked out in red, the message patterns behind the
+noise, and the top errors — plus a viewer that filters by level, text (regex), structured field and
+time window, live. It is an optional extra; the CLI stays dependency-free.
+
+![The logsift console](docs/dashboard.png)
+
+```bash
+pip install "logsift[web]"
+logsift serve                      # http://localhost:8000
+```
+
+Every view has a JSON twin — `GET /datasets/{id}.json?level=error&q=timeout&where=status=500` returns
+the same filtered summary as the page — so the console doubles as an API. Run it with Docker:
+
+```bash
+docker build -t logsift . && docker run -p 8000:8000 -v "$PWD/data:/data" logsift
 ```
 
 ## Why
@@ -129,27 +150,31 @@ pytest
 ```
 
 The test suite covers the parsers against real-world line shapes, the filter predicates, the
-aggregation maths and the CLI end to end on the files in [`examples/`](examples/). CI runs it on
-Linux and Windows across Python 3.10 to 3.13.
+aggregation maths, the CLI end to end on the files in [`examples/`](examples/), the SQLite store
+(round-tripping parsed records) and the web console via `TestClient` (upload, filtering, the JSON
+API, errors). CI runs it on Linux and Windows across Python 3.10 to 3.13.
 
 ## Project layout
 
 ```
 src/logsift
-├── cli.py        argument parsing, input streaming, output formatting
+├── cli.py        argument parsing, input streaming, output formatting, `serve`
 ├── parsers.py    JSON and text line parsing, timestamp normalisation
 ├── filters.py    FilterSpec -> predicate, duration and key=value parsing
 ├── stats.py      message templating and bucketed summaries
-└── models.py     Level enum and the Record dataclass
+├── models.py     Level enum and the Record dataclass
+├── store.py      SQLite persistence for uploaded datasets ([web])
+├── web.py        FastAPI console + JSON API ([web])
+└── templates/    the console's HTML (inline-styled, no asset pipeline)
 tests/            pytest suite
 examples/         sample JSON and text logs used by the tests and the README
 ```
 
 ## Ideas for later
 
-- `--follow` to tail a growing file
-- Output as a histogram of field values (`--count-by status`)
-- A `--format csv` for spreadsheets
+- `--follow` / live tail in the console over a websocket
+- A histogram of field values (`--count-by status`)
+- Saved filters and shareable console links
 
 ## License
 

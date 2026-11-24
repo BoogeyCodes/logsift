@@ -10,3 +10,7 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+
+# Local databases
+*.db
+*.sqlite3
